@@ -8,24 +8,23 @@ class Categories(db.Model):
 
     category_id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     category_name = db.Column(db.String(), nullable=False, unique=True)
-    description = db.Column(db.String())
 
-    # products = db.relationship(
-    #     "Products",
-    #     secondary="ProductCategoryXref",
-    #     back_populates="categories"
-    # )
-
-    def __init__(self, category_name, description=None):
+    def __init__(self, category_name):
         self.category_name = category_name
-        self.description = description
+
+    @staticmethod
+    def new_category_obj():
+        return Categories('')
 
 
 class CategoriesSchema(ma.Schema):
     category_id = ma.fields.UUID(dump_only=True)
-    category_name = ma.fields.Str(required=True)
-    description = ma.fields.Str()
-    products = ma.fields.Nested("ProductsSchema", many=True, exclude=["categories", "company", "warranty"])
+    category_name = ma.fields.String(required=True)
+    products = ma.fields.Nested("ProductsSchema", many=True, exclude=['categories', 'company', 'warranty'], dump_only=True)
+
+    class Meta:
+        fields = ['category_id', 'category_name', 'products']
+
 
 category_schema = CategoriesSchema()
 categories_schema = CategoriesSchema(many=True)

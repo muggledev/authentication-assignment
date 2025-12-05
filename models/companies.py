@@ -8,22 +8,22 @@ class Companies(db.Model):
 
     company_id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     company_name = db.Column(db.String(), nullable=False, unique=True)
-    address = db.Column(db.String())
-    email = db.Column(db.String())
 
     products = db.relationship("Products", back_populates="company", cascade="all, delete-orphan")
 
-    def __init__(self, company_name, address=None, email=None):
+    def __init__(self, company_name):
         self.company_name = company_name
-        self.address = address
-        self.email = email
+
+    def new_company_obj():
+        return Companies('')
 
 
 class CompaniesSchema(ma.Schema):
+    class Meta:
+        fields = ['company_id', 'company_name', 'products']
     company_id = ma.fields.UUID(dump_only=True)
-    company_name = ma.fields.Str(required=True)
-    address = ma.fields.Str()
-    email = ma.fields.Str()
+    company_name = ma.fields.String(required=True)
+
     products = ma.fields.Nested("ProductsSchema", many=True, exclude=["company", "categories", "warranty"])
 
 company_schema = CompaniesSchema()

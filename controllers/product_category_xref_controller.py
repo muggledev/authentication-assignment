@@ -1,12 +1,12 @@
 from flask import request, jsonify
+
 from db import db
 from models.product_category_xref import ProductCategoryXref
 from models.products import Products
 from models.categories import Categories
-from lib.authenticate import authenticate, require_role
+from lib.authenticate import authenticate_return_auth
 
-@authenticate
-@require_role("admin")
+@authenticate_return_auth
 def add_product_category(auth_info):
     data = request.get_json() or request.form
     product_id = data.get("product_id")
@@ -31,8 +31,8 @@ def add_product_category(auth_info):
 
     return jsonify({"message": "product linked to category"}), 201
 
-@authenticate
-@require_role("admin")
+
+@authenticate_return_auth
 def remove_product_category(auth_info):
     data = request.get_json() or request.form
     product_id = data.get("product_id")

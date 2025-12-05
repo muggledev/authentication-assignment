@@ -11,10 +11,20 @@ class Users(db.Model):
     password = db.Column(db.String(), nullable=False)
     role = db.Column(db.String(), default="user")
 
+    def __init__(self, email, password, role='user'):
+        self.email = email
+        self.password = password
+        self.role = role
+
+    def new_user_obj():
+        return Users('', '', 'user')
+
 class UsersSchema(ma.Schema):
+    class Meta:
+        fields = ['user_id', 'email', 'role']
     user_id = ma.fields.UUID()
-    email = ma.fields.Str()
-    role = ma.fields.Str()
+    email = ma.fields.String()
+    role = ma.fields.String()
 
 user_schema = UsersSchema()
 users_schema = UsersSchema(many=True)

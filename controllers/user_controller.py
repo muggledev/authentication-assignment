@@ -4,22 +4,17 @@ from db import db
 from models.users import Users, user_schema, users_schema
 from models.auth_tokens import AuthTokens
 from util.reflection import populate_object
-from lib.authenticate import authenticate, require_role
+from lib.authenticate import authenticate, authenticate_return_auth
 import datetime
 
 
 def create_user():
-    data = request.get_json() or request.form
+    post_data = request.form if request.form else request.json
 
-    new_user = Users()
-    populate_object(new_user, data)
-
-    if not new_user.password:
-        return jsonify({"message": "password is required"}), 400
+    new_user = Users.new_user_obj()
+    populate_object(new_user, post_data)
 
     new_user.password = generate_password_hash(new_user.password).decode('utf8')
-    if not new_user.role:
-        new_user.role = "user"
 
     try:
         db.session.add(new_user)
@@ -32,52 +27,52 @@ def create_user():
 
 
 @authenticate
-@require_role("admin")
-def get_all_users(auth_info):
-    users = Users.query.all()
+def get_all_users():
+    users = db.session.query(Users).all()
     return jsonify({"users": users_schema.dump(users)}), 200
 
 
-@authenticate
+@authenticate_return_auth
 def get_user_by_id(user_id, auth_info):
-    user = Users.query.get(user_id)
+    user = db.session.query(Users).filter(Users.user_id == user_id).first()
 
     if not user:
         return jsonify({"message": "user not found"}), 404
 
-    if request.user.role == "admin" or str(request.user.user_id) == user_id:
+    if auth_info.user.role == "admin" or str(auth_info.user.user_id) == user_id:
         return jsonify({"user": user_schema.dump(user)}), 200
 
     return jsonify({"message": "not authorized"}), 403
 
 
-@authenticate
+@authenticate_return_auth
 def update_user(user_id, auth_info):
-    user = Users.query.get(user_id)
+    post_data = request.form if request.form else request.json
+    user = db.session.query(Users).filter(Users.user_id == user_id).first()
+
     if not user:
         return jsonify({"message": "user not found"}), 404
 
-    if request.user.role != "admin" and str(request.user.user_id) != user_id:
+    if auth_info.user.role != "admin" and str(auth_info.user.user_id) != user_id:
         return jsonify({"message": "not authorized"}), 403
 
-    data = request.get_json() or request.form
 
-    if "password" in data:
-        data["password"] = generate_password_hash(data["password"]).decode('utf8')
+    if post_data.get('password'):
+        user.password = generate_password_hash(post_data.get('password')).decode('utf8')
 
-    populate_object(user, data)
+    populate_object(user, post_data)
     db.session.commit()
 
     return jsonify({"message": "user updated", "user": user_schema.dump(user)}), 200
 
 
-@authenticate
+@authenticate_return_auth
 def delete_user(user_id, auth_info):
-    user = Users.query.get(user_id)
+    user = db.session.query(Users).filter(Users.user_id == user_id).first()
     if not user:
         return jsonify({"message": "user not found"}), 404
 
-    if request.user.role != "admin" and str(request.user.user_id) != user_id:
+    if auth_info.user.role != "admin" and str(auth_info.user.user_id) != user_id:
         return jsonify({"message": "not authorized"}), 403
 
     db.session.delete(user)

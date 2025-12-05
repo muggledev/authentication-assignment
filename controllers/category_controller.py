@@ -1,63 +1,67 @@
 from flask import request, jsonify
 from db import db
 from models.categories import Categories, category_schema, categories_schema
-from lib.authenticate import authenticate, require_role
+from lib.authenticate import authenticate, authenticate_return_auth
 from util.reflection import populate_object
 
-@authenticate
-@require_role("admin")
+
+@authenticate_return_auth
 def create_category(auth_info):
-    data = request.get_json() or request.form
-    category_name = data.get("category_name")
-    if not category_name:
-        return jsonify({"message": "category name is required"}), 400
+    if auth_info.user.role != "admin":
+        return jsonify({"message": "not authorized"}), 403
 
-    if Categories.query.filter_by(category_name=category_name).first():
-        return jsonify({"message": "category already exists"}), 400
+    post_data = request.form if request.form else request.json
+    new_category = Categories.new_category_obj()
 
-    new_category = Categories(category_name=category_name, description=data.get("description"))
+    populate_object(new_category, post_data)
+
     db.session.add(new_category)
     db.session.commit()
 
     return jsonify({"message": "category created", "category": category_schema.dump(new_category)}), 201
 
-@authenticate
-def get_categories(auth_info):
-    all_categories = Categories.query.all()
-    return jsonify({"message": "categories found", "categories": categories_schema.dump(all_categories)}), 200
 
 @authenticate
-def get_category_by_id(category_id, auth_info):
+def get_categories():
+    categories = Categories.query.all()
+    return jsonify({"categories": categories_schema.dump(categories)}), 200
+
+
+@authenticate
+def get_category_by_id(category_id):
     category = Categories.query.get(category_id)
     if not category:
         return jsonify({"message": "category not found"}), 404
-    return jsonify({"message": "category found", "category": category_schema.dump(category)}), 200
+    return jsonify({"category": category_schema.dump(category)}), 200
 
-@authenticate
-@require_role("admin")
+
+@authenticate_return_auth
 def update_category(category_id, auth_info):
-    category = Categories.query.get(category_id)
+    if auth_info.user.role != "admin":
+        return jsonify({"message": "not authorized"}), 403
+
+    post_data = request.form if request.form else request.json
+    category = db.session.query(Categories).filter(Categories.category_id == category_id).first()
+
     if not category:
         return jsonify({"message": "category not found"}), 404
 
-    data = request.get_json() or request.form
-
-    new_name = data.get("category_name")
-    if new_name and Categories.query.filter(Categories.category_name == new_name, Categories.category_id != category_id).first():
-        return jsonify({"message": "category name already exists"}), 400
-
-    populate_object(category, data)
+    populate_object(category, post_data)
     db.session.commit()
 
     return jsonify({"message": "category updated", "category": category_schema.dump(category)}), 200
 
-@authenticate
-@require_role("admin")
+
+@authenticate_return_auth
 def delete_category(category_id, auth_info):
+    if auth_info.user.role != "admin":
+        return jsonify({"message": "not authorized"}), 403
+
     category = Categories.query.get(category_id)
     if not category:
         return jsonify({"message": "category not found"}), 404
 
     db.session.delete(category)
     db.session.commit()
+
     return jsonify({"message": "category deleted"}), 200
